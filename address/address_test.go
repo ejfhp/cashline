@@ -6,17 +6,50 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcutil/base58"
 	"golang.org/x/crypto/ripemd160"
 	"math/big"
 	"testing"
 )
 
-type secp256k1 struct {
+type Secp256k1 struct {
 	*elliptic.CurveParams
 }
 
-func derivatePublicKey(key []byte, curve elliptic.Curve) (uncompressedPubKey []byte) {
+func marshalToUncompressedBytes(pubK ecdsa.PublicKey) (uncompressedPubKey []byte) {
+	byteX := pubK.X.Bytes()
+	byteY := pubK.Y.Bytes()
+	fmt.Printf("X: %x  Y:%x \n", byteX, byteY)
+
+	//Append 0x04 X and Y to build public key
+	uncompressedPubKey = []byte{0x04}
+	uncompressedPubKey = append(uncompressedPubKey, byteX...)
+	uncompressedPubKey = append(uncompressedPubKey, byteY...)
+	fmt.Printf("Uncompressed: %x\n", uncompressedPubKey)
+	return uncompressedPubKey
+}
+
+func marshalToCompressedBytes(pubK ecdsa.PublicKey) (compressedPubKey []byte) {
+	byteX := pubK.X.Bytes()
+	byteY := pubK.Y.Bytes()
+	fmt.Printf("X: %x  Y:%x \n", byteX, byteY)
+	fmt.Printf("X: %v  Y:%v \n", pubK.X, pubK.Y)
+	evenOdd := pubK.X.Bit(0)
+	fmt.Printf("O means X is even: %d\n", evenOdd)
+	compressedPubKey = []byte{}
+	//Append 0x02 if X even and 0x03 if X is odd
+	if evenOdd == 0 {
+		compressedPubKey = append(compressedPubKey, 0x02)
+	} else {
+		compressedPubKey = append(compressedPubKey, 0x03)
+	}
+	compressedPubKey = append(compressedPubKey, byteX...)
+	fmt.Printf("Compressed: %x\n", compressedPubKey)
+	return compressedPubKey
+}
+
+func derivatePublicKey(key []byte, curve elliptic.Curve) ecdsa.PublicKey {
 	fmt.Printf("PrivateKey is %x of length=%d\n", key, len(key))
 	bigNumberKey := new(big.Int)
 	bigNumberKey.SetBytes(key)
@@ -27,26 +60,12 @@ func derivatePublicKey(key []byte, curve elliptic.Curve) (uncompressedPubKey []b
 	privKey.D = bigNumberKey
 	privKey.PublicKey.Curve = curve
 	privKey.PublicKey.X, privKey.PublicKey.Y = curve.ScalarBaseMult(bigNumberKey.Bytes())
-	//Append 0x04 X and Y to build public key
-	uncompressedPubKey = []byte{0x04}
-	byteX := privKey.PublicKey.X.Bytes()
-	byteY := privKey.PublicKey.Y.Bytes()
-	fmt.Printf("X: %x  Y:%x \n", byteX, byteY)
-	uncompressedPubKey = append(uncompressedPubKey, byteX...)
-	uncompressedPubKey = append(uncompressedPubKey, byteY...)
-	return uncompressedPubKey
+	publicKey := privKey.PublicKey
+	return publicKey
 }
 
 func makeSecp256k1Curve() elliptic.Curve {
-	bchCurveParams := new(elliptic.CurveParams)
-	bchCurveParams.Name = "secp256k1"
-	bchCurveParams.P, _ = new(big.Int).SetString("fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f", 16)
-	bchCurveParams.N, _ = new(big.Int).SetString("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", 16) // A valid key must me less than N
-	bchCurveParams.B, _ = new(big.Int).SetString("0000000000000000000000000000000000000000000000000000000000000007", 16)
-	bchCurveParams.Gx, _ = new(big.Int).SetString("79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798", 16)
-	bchCurveParams.Gy, _ = new(big.Int).SetString("483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8", 16)
-	bchCurveParams.BitSize = 256
-	bchCurve := secp256k1{bchCurveParams}
+	bchCurve := btcec.S256()
 	return bchCurve
 }
 
@@ -72,46 +91,56 @@ func TestDecodeKey(t *testing.T) {
 	fmt.Println("FROM KEY TO ADDRESS ---------------------------------------------------")
 	fmt.Println("")
 
-	// PRIV "0c4d19b8b6383e6c9641f6769707798b20f30bc98b0bae5d14c1f5088b24566c"
-	// PUB  "04bfcc0a1c403baffaeef9320c7312ea23a7f1acc046d74b82728985e659727a63a2a17ac02f53401dc22b4fe86e64d6d188b551bcb3b4bbdc8e3d473b7ea4c945"
-	// Works with elliptic.P256()
+	// PRIV "9e6e0deb74e38262b1858279857c3f95ce7acde1ed01ec7838eb77d298efb3fb"
+	// PUB "040fd18893777850957d713987160ac4922efbcf827596eb3d2eea3680053040fc9303b18c2d5068345a29b506dbfcb2a8c03394c3aed06297bd9d580dde4148b8"
+	// works with "github.com/btcsuite/btcd/btcec"
 
-	// PRIV "5ded643a8edce629a5d2559a984959924295d02c4610d02b0606ac6787c6351d"
-	// PUB  "042aca47a09b249f9c8bb3bdfe47a228c7a656872b9c3292df2a68de52a3fddca03d7efbcb74b387a1b42626d6f0e4edbb2c827431cc6369dfa92c8c4c692b1324"
-
-	privKeyHexString := "5ded643a8edce629a5d2559a984959924295d02c4610d02b0606ac6787c6351d"
-	// privKeyHexString := "0c4d19b8b6383e6c9641f6769707798b20f30bc98b0bae5d14c1f5088b24566c"
-	// privKeyHexString := "18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725"
+	privKeyHexString := "18e14a7b6a307f426a94f8114701e7c8e774e7f9a47e2c2035db29a206321725"
 	privKeyByte, err := hex.DecodeString(privKeyHexString)
 	if err != nil {
 		panic(err)
 	}
+
 	bchCurve := makeSecp256k1Curve()
-	// bchCurve := elliptic.P256()
 	publicKey := derivatePublicKey(privKeyByte, bchCurve)
 
-	fmt.Printf("Pubkey is %x  len: %v\n", publicKey, len(publicKey))
+	comPubKey := marshalToCompressedBytes(publicKey)
+	// uncomPubKey := marshalToUncompressedBytes(publicKey)
+
+	fmt.Printf("Compressed pubkey is %x len: %v\n", comPubKey, len(comPubKey))
 
 	fmt.Println("FROM KEY TO ADDRESS --------------------------------------------------- END")
 	fmt.Println("")
 	fmt.Println("")
 
 	//Sha256 of public key
-	pkSha256 := sha256.Sum256(publicKey)
+	publicKSha256 := sha256.Sum256(comPubKey)
+	pkSha256 := []byte(publicKSha256[:])
+
 	fmt.Printf("Sha256 of PubKey: %[1]T %[1]x %d\n", pkSha256, len(pkSha256))
 
 	// Ripe160
-	ripemd160 := ripemd160.New()
-	fmt.Printf("Ripemd160 return size is %d\n", ripemd160.Size())
-	pkRip160 := ripemd160.Sum(pkSha256[:])
-	fmt.Printf("Ripemd160 of PubKey Sha256 is %x %d\n", pkRip160[20:], len(pkRip160))
-	// var ecKey *ecdsa.PrivateKey = decodeKey(commonKey)
-	// if ecKey == nil {
-	// 	t.Error("The key is nil")
-	// }
-	// fmt.Println("Private KeyBig int", privKeyNum)
-	// if ecKey.D != &privKeyNum {
-	// 	t.Error("Key doesn't match")
-	// }
-	// fmt.Printf("ECSDA KEY: %v\n", ecKey)
+	ripe160 := ripemd160.New()
+	fmt.Printf("Ripemd160 return size is %d\n", ripe160.Size())
+	ripe160.Write(pkSha256)
+	pkRip160 := ripe160.Sum(nil)
+	fmt.Printf("Ripemd160 of PubKey Sha256 is %x %d\n", pkRip160, len(pkRip160)) // giusto!
+
+	withVersion := append([]byte{0x00}, pkRip160...)
+	fmt.Printf("WithVersion is %x \n", withVersion) // giusto!
+
+	shaWithVersion := sha256.Sum256(withVersion)
+	fmt.Printf("Sha256 of WithVersion is %x \n", shaWithVersion) // giusto!
+
+	shaWithVersion = sha256.Sum256(shaWithVersion[:])
+	fmt.Printf("Double Sha256 of WithVersion is %x \n", shaWithVersion) // giusto!
+
+	checkSum := shaWithVersion[:4]
+	fmt.Printf("CheckSum is %x \n", checkSum) // giusto!
+
+	ripeAndCheck := append(withVersion, checkSum...)
+	fmt.Printf("Ripemd160 with Version and CheckSum is %x \n", ripeAndCheck) // giusto!
+
+	addressV1 := base58.Encode(ripeAndCheck)
+	fmt.Printf("Address V1 is %v \n", addressV1) // giusto!
 }
