@@ -1,146 +1,139 @@
 package address
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
-	"github.com/btcsuite/btcd/btcec"
-	"github.com/btcsuite/btcutil/base58"
-	"golang.org/x/crypto/ripemd160"
-	"math/big"
+	"strings"
 	"testing"
 )
 
-type Secp256k1 struct {
-	*elliptic.CurveParams
-}
-
-func marshalToUncompressedBytes(pubK ecdsa.PublicKey) (uncompressedPubKey []byte) {
-	byteX := pubK.X.Bytes()
-	byteY := pubK.Y.Bytes()
-	fmt.Printf("X: %x  Y:%x \n", byteX, byteY)
-
-	//Append 0x04 X and Y to build public key
-	uncompressedPubKey = []byte{0x04}
-	uncompressedPubKey = append(uncompressedPubKey, byteX...)
-	uncompressedPubKey = append(uncompressedPubKey, byteY...)
-	fmt.Printf("Uncompressed: %x\n", uncompressedPubKey)
-	return uncompressedPubKey
-}
-
-func marshalToCompressedBytes(pubK ecdsa.PublicKey) (compressedPubKey []byte) {
-	byteX := pubK.X.Bytes()
-	byteY := pubK.Y.Bytes()
-	fmt.Printf("X: %x  Y:%x \n", byteX, byteY)
-	fmt.Printf("X: %v  Y:%v \n", pubK.X, pubK.Y)
-	evenOdd := pubK.X.Bit(0)
-	fmt.Printf("O means X is even: %d\n", evenOdd)
-	compressedPubKey = []byte{}
-	//Append 0x02 if X even and 0x03 if X is odd
-	if evenOdd == 0 {
-		compressedPubKey = append(compressedPubKey, 0x02)
-	} else {
-		compressedPubKey = append(compressedPubKey, 0x03)
-	}
-	compressedPubKey = append(compressedPubKey, byteX...)
-	fmt.Printf("Compressed: %x\n", compressedPubKey)
-	return compressedPubKey
-}
-
-func derivatePublicKey(key []byte, curve elliptic.Curve) ecdsa.PublicKey {
-	fmt.Printf("PrivateKey is %x of length=%d\n", key, len(key))
-	bigNumberKey := new(big.Int)
-	bigNumberKey.SetBytes(key)
-	fmt.Printf("Big.Int HEX %x\n", bigNumberKey.Bytes())
-	fmt.Printf("Big.Int num %v\n", bigNumberKey)
-
-	privKey := new(ecdsa.PrivateKey)
-	privKey.D = bigNumberKey
-	privKey.PublicKey.Curve = curve
-	privKey.PublicKey.X, privKey.PublicKey.Y = curve.ScalarBaseMult(bigNumberKey.Bytes())
-	publicKey := privKey.PublicKey
-	return publicKey
-}
-
-func makeSecp256k1Curve() elliptic.Curve {
-	bchCurve := btcec.S256()
-	return bchCurve
-}
-
-func decodeBase58Example() {
-	// Example from http://gobittest.appspot.com/PrivateKey
-	encodedKey := Key("5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ")
-	fmt.Printf("BCH private key is %v\n", encodedKey)
-
-	// Decoding key using base58
-	decoded, version, err := base58.CheckDecode(string(encodedKey))
+func TestDecodeBase58Uncompressed(t *testing.T) {
+	//http://gobittest.appspot.com/PrivateKey
+	encodedKey := "5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ"
+	privateKey := strings.ToLower("0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D")
+	decoded, compressed, err := DecodeBase58PrivKey(encodedKey)
 	if err != nil {
-		fmt.Println("Cannot decode private key", err)
+		t.Errorf("Failed because: %v", err)
 	}
-	fmt.Printf("Key version is: %d\n", version)
-	fmt.Printf("Base58 decoded []byte: %v\n", decoded)
-	fmt.Printf("Base58 decoded []byte: %v\n", hex.EncodeToString(decoded))
-
+	decodedAsString := hex.EncodeToString(decoded)
+	if decodedAsString != privateKey {
+		t.Errorf("Failed because decoded key is not correct: %v %x", decodedAsString, decoded)
+	}
+	if compressed != false {
+		t.Errorf("Failed because decoded key is not compressed")
+	}
 }
-
-// Key example from https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
-// ECDSA KEY PAIR GENERATOR https://kjur.github.io/jsrsasign/sample/sample-ecdsa.html
-func TestDecodeKey(t *testing.T) {
-	fmt.Println("FROM KEY TO ADDRESS ---------------------------------------------------")
-	fmt.Println("")
-
-	// PRIV "9e6e0deb74e38262b1858279857c3f95ce7acde1ed01ec7838eb77d298efb3fb"
-	// PUB "040fd18893777850957d713987160ac4922efbcf827596eb3d2eea3680053040fc9303b18c2d5068345a29b506dbfcb2a8c03394c3aed06297bd9d580dde4148b8"
-	// works with "github.com/btcsuite/btcd/btcec"
-
-	privKeyHexString := "18e14a7b6a307f426a94f8114701e7c8e774e7f9a47e2c2035db29a206321725"
+func TestDecodeBase58KeyCompressed(t *testing.T) {
+	//http://gobittest.appspot.com/PrivateKey
+	encodedKey := "KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617"
+	privateKey := strings.ToLower("0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D")
+	decoded, compressed, err := DecodeBase58PrivKey(encodedKey)
+	if err != nil {
+		t.Errorf("Failed because: %v", err)
+	}
+	decodedAsString := hex.EncodeToString(decoded)
+	if decodedAsString != privateKey {
+		t.Errorf("Failed because decoded key is not correct: %v expected: %v", decodedAsString, privateKey)
+	}
+	if compressed != true {
+		t.Errorf("Failed because decoded key is compressed")
+	}
+}
+func TestDerivateCompressesPublicKey(t *testing.T) {
+	//https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
+	privKeyHexString := "0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D"
 	privKeyByte, err := hex.DecodeString(privKeyHexString)
 	if err != nil {
-		panic(err)
+		t.Errorf("Cannot decode private key")
 	}
+	compressedPubKey := DerivatePublicKey(privKeyByte, true)
+	expectedPubKey := "02d0de0aaeaefad02b8bdc8a01a1b8b11c696bd3d66a2c5f10780d95b7df42645c"
+	pubKeyAsString := hex.EncodeToString(compressedPubKey)
+	if pubKeyAsString != expectedPubKey {
+		t.Errorf("Unexpected compressed pubKey actual:%v  expected:%v", pubKeyAsString, expectedPubKey)
+	}
+}
 
-	bchCurve := makeSecp256k1Curve()
-	publicKey := derivatePublicKey(privKeyByte, bchCurve)
+func TestDerivateUncompressesPublicKey(t *testing.T) {
+	//https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
+	privKeyHexString := "0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D"
+	privKeyByte, err := hex.DecodeString(privKeyHexString)
+	if err != nil {
+		t.Errorf("Cannot decode private key")
+	}
+	uncompressedPubKey := DerivatePublicKey(privKeyByte, false)
+	expectedPubKey := "04d0de0aaeaefad02b8bdc8a01a1b8b11c696bd3d66a2c5f10780d95b7df42645cd85228a6fb29940e858e7e55842ae2bd115d1ed7cc0e82d934e929c97648cb0a"
+	pubKeyAsString := hex.EncodeToString(uncompressedPubKey)
+	if pubKeyAsString != expectedPubKey {
+		t.Errorf("Unexpected uncompressed pubKey actual:%v  expected:%v", pubKeyAsString, expectedPubKey)
+	}
+}
 
-	comPubKey := marshalToCompressedBytes(publicKey)
-	// uncomPubKey := marshalToUncompressedBytes(publicKey)
+func TestUncompressedV1FromPubKey(t *testing.T) {
+	//https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
+	uncompressed := "04d0de0aaeaefad02b8bdc8a01a1b8b11c696bd3d66a2c5f10780d95b7df42645cd85228a6fb29940e858e7e55842ae2bd115d1ed7cc0e82d934e929c97648cb0a"
+	uncompressedPubKey, _ := hex.DecodeString(uncompressed)
+	address := V1FromPubKey(uncompressedPubKey)
+	expectedAddress := "1GAehh7TsJAHuUAeKZcXf5CnwuGuGgyX2S"
+	if address != expectedAddress {
+		t.Errorf("Decoded address was not the expected expected: %v, decoded: %v", expectedAddress, address)
+	}
+}
+func TestV1FromCompressedPubKey(t *testing.T) {
+	//https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
+	compressed := "02d0de0aaeaefad02b8bdc8a01a1b8b11c696bd3d66a2c5f10780d95b7df42645c"
+	compressedPubKey, _ := hex.DecodeString(compressed)
+	address := V1FromPubKey(compressedPubKey)
+	expectedAddress := "1LoVGDgRs9hTfTNJNuXKSpywcbdvwRXpmK"
+	if address != expectedAddress {
+		t.Errorf("Decoded address was not the expected expected: %v, decoded: %v", expectedAddress, address)
+	}
+}
 
-	fmt.Printf("Compressed pubkey is %x len: %v\n", comPubKey, len(comPubKey))
-
-	fmt.Println("FROM KEY TO ADDRESS --------------------------------------------------- END")
-	fmt.Println("")
-	fmt.Println("")
-
-	//Sha256 of public key
-	publicKSha256 := sha256.Sum256(comPubKey)
-	pkSha256 := []byte(publicKSha256[:])
-
-	fmt.Printf("Sha256 of PubKey: %[1]T %[1]x %d\n", pkSha256, len(pkSha256))
-
-	// Ripe160
-	ripe160 := ripemd160.New()
-	fmt.Printf("Ripemd160 return size is %d\n", ripe160.Size())
-	ripe160.Write(pkSha256)
-	pkRip160 := ripe160.Sum(nil)
-	fmt.Printf("Ripemd160 of PubKey Sha256 is %x %d\n", pkRip160, len(pkRip160)) // giusto!
-
-	withVersion := append([]byte{0x00}, pkRip160...)
-	fmt.Printf("WithVersion is %x \n", withVersion) // giusto!
-
-	shaWithVersion := sha256.Sum256(withVersion)
-	fmt.Printf("Sha256 of WithVersion is %x \n", shaWithVersion) // giusto!
-
-	shaWithVersion = sha256.Sum256(shaWithVersion[:])
-	fmt.Printf("Double Sha256 of WithVersion is %x \n", shaWithVersion) // giusto!
-
-	checkSum := shaWithVersion[:4]
-	fmt.Printf("CheckSum is %x \n", checkSum) // giusto!
-
-	ripeAndCheck := append(withVersion, checkSum...)
-	fmt.Printf("Ripemd160 with Version and CheckSum is %x \n", ripeAndCheck) // giusto!
-
-	addressV1 := base58.Encode(ripeAndCheck)
-	fmt.Printf("Address V1 is %v \n", addressV1) // giusto!
+func TestV1FromCompressedWIF(t *testing.T) {
+	//https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
+	WIF := "L4WSMjd6ve28Y8WHWoDxgGLw9r7Ri5eZKboqVbpZnqhAXq3gCQZf"
+	address, err := CompressedV1FromWIF(WIF)
+	if err != nil {
+		t.Errorf("Cannot get address for key %v due to %v", WIF, err)
+	}
+	expectedAddress := "1KouakBQuaKQmBa9PtDhPttm4NmNABqFY4"
+	if address != expectedAddress {
+		t.Errorf("Decoded address was not the expected expected: %v, decoded: %v", expectedAddress, address)
+	}
+}
+func TestCompressedV1FromPrivKey(t *testing.T) {
+	//https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
+	privKeyHexString := "18e14a7b6a307f426a94f8114701e7c8e774e7f9a47e2c2035db29a206321725"
+	privKeyByte, err := hex.DecodeString(privKeyHexString)
+	address, err := CompressedV1(privKeyByte)
+	if err != nil {
+		t.Errorf("Unexpected error while decoding address: %v", err)
+	}
+	expectedAddress := "1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs"
+	if address != expectedAddress {
+		t.Errorf("Decoded address was not the expected expected: %v, decoded: %v", expectedAddress, address)
+	}
+}
+func TestBulkCompressedWIF(t *testing.T) {
+	//https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
+	keyAddress := [][]string{
+		[]string{"14rK9eCMHnRUY4CP4Ek2uE5nREZ2uddAAR", "KwEbTtuEaCieuJ7T4qtfn4hV3jqdpQSoRjiuyYS9vMVwWqzencHA"},
+		[]string{"1ASPfH9oUcdwFwpnC11wFqAQqJ2oo56P86", "L3WrDboiSWcZSV7oGzNp98doJZW1eWuJsgcrfSE4B99JEpneqo2r"},
+		[]string{"18coMHq1YxoSqdiCKtzU1pFK4JBNDDnDFq", "L1L1t3Pao5YvJDh3LRUeiyLYCivEDT5Vta945ETA6C6WgswTeobf"},
+		[]string{"1MZHcx9cBvErnoadrP3q6PGteKpmf8hiXS", "KyRpywmtM7LA6NSt76uTB4C7RUAwqHjnvu76PhUHHeN1ctf4H4r2"},
+		[]string{"1CUV6Wx14rkgpagBZdaqu75DwvBoiMedJX", "L1Z8WYSRf4BiUH9SL9nygqDkYN1MkjWufckULNi9GA75yueoBhZD"},
+		[]string{"1Espv7TwsZ4qKZc4JABXZiowoV6Z6KRmcf", "L168y9YQ2uFKcfpHWAgQoc3pGwsGQ5Y1oimH5v5FC3HQNdtBeap9"},
+		[]string{"15M8kkBa3ArUx7VZG98Enwo6Ji8RTPYg2w", "L1ubgTeSbnPD2JxQSZBJgQrTjPnnJSxmeBKXxBqANMYr63Jmpagj"},
+		[]string{"1K3GeJwSSjzcpVrMG2pBbH5UyzgAmNVEnW", "L5Th5hoGsSBMxFkEAPnJygr36wtAzWvGKQMyv2LmrYbm57CHsJex"},
+		[]string{"1MRPV3x81GBaD4Yee76y9pnVk2wr8z6oZa", "KyWPLxbAjafWJdwsVQKjudNDrW1sjjU9VbVhmYSzvapG1n8giy9c"},
+	}
+	for _, pair := range keyAddress {
+		address, err := CompressedV1FromWIF(pair[1])
+		if err != nil {
+			t.Errorf("Unexpected error while decoding address: %v", err)
+		}
+		if address != pair[0] {
+			t.Errorf("Decoded address was not the expected expected: %v, decoded: %v", pair[0], address)
+		}
+	}
 }
