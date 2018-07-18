@@ -32,7 +32,11 @@ func PrivateFromWIF(keyString string) (key []byte, compressed bool, err error) {
 	}
 	fmt.Printf("Decoded key: %x compressed: %t\n", key, compressed)
 	return key, compressed, nil
+}
 
+// ToWIF encode a private key to WIF (Wallet IMport Format) compressed or uncompressed
+func ToWIF(privateKey []byte, compressed bool) string {
+	return ""
 }
 
 // Public derivates a public key in compressed or uncompressed format from a private key
@@ -61,10 +65,10 @@ func derivatePublicKey(key []byte) ecdsa.PublicKey {
 func toCompressedBytes(pubK ecdsa.PublicKey) (compressedPubKey []byte) {
 	byteX := pubK.X.Bytes()
 	//byteY := pubK.Y.Bytes()
-	evenOdd := pubK.X.Bit(0) //O means X is even, 1 means X is odd
+	yIsEven := isEven(pubK.Y) //O means X is even, 1 means X is odd
 	compressedPubKey = []byte{}
-	//Append 0x02 if X even and 0x03 if X is odd
-	if evenOdd == 0 {
+	//Append 0x02 if Y even and 0x03 if X is odd
+	if yIsEven {
 		compressedPubKey = append(compressedPubKey, 0x02)
 	} else {
 		compressedPubKey = append(compressedPubKey, 0x03)
@@ -81,4 +85,15 @@ func toUncompressedBytes(pubK ecdsa.PublicKey) (uncompressedPubKey []byte) {
 	uncompressedPubKey = append(uncompressedPubKey, byteX...)
 	uncompressedPubKey = append(uncompressedPubKey, byteY...)
 	return uncompressedPubKey
+}
+
+func isEven(num *big.Int) (even bool) {
+	evenOdd := num.Bit(0) //O means X is even, 1 means X is odd
+	defer func() { fmt.Printf("Number %v is even: %v\n", num, even) }()
+	even = true
+	if evenOdd == 1 {
+		even = false
+	}
+	return
+
 }
