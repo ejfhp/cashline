@@ -7,6 +7,10 @@ import (
 	"testing"
 )
 
+/*
+/ Useful for teesting:
+/ https://www.bitaddress.org/bitaddress.org-v3.3.0-SHA256-dec17c07685e1870960903d8f58090475b25af946fe95a734f88408cef4aa194.html
+*/
 func TestDecodeUncompressedWIF_1(t *testing.T) {
 	//http://gobittest.appspot.com/PrivateKey
 	encodedKey := "5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ"
@@ -105,10 +109,26 @@ func TestDecodeCompressedWIF_3(t *testing.T) {
 }
 
 func TestEncodeToUncompressedWIF(t *testing.T) {
-	t.Error("Not yet implemented")
+	privateKey := "7A97DA2C6F4BC73D2B330F2634975D6485C7294AD95F33ACC007C5BC5CB1DC5C"
+	wif, err := ToWIF(privateKey, false)
+	if err != nil {
+		t.Errorf("WIF encoding has failed due to %v", err)
+	}
+	expected := "5JkH4Qek122o4Sz6y4HEXokPvrprfcpEo84BfZxKNZse5zMeAoA"
+	if wif != expected {
+		t.Errorf("Failed because encoded WIF is not correct, actual: %v  expected: %v", wif, expected)
+	}
 }
 func TestEncodeToCompressedWIF(t *testing.T) {
-	t.Error("Not yet implemented")
+	privateKey := "7A97DA2C6F4BC73D2B330F2634975D6485C7294AD95F33ACC007C5BC5CB1DC5C"
+	wif, err := ToWIF(privateKey, true)
+	if err != nil {
+		t.Errorf("WIF encoding has failed due to %v", err)
+	}
+	expected := "L1L1t3Pao5YvJDh3LRUeiyLYCivEDT5Vta945ETA6C6WgswTeobf"
+	if wif != expected {
+		t.Errorf("Failed because encoded WIF is not correct, actual: %v  expected: %v", wif, expected)
+	}
 }
 func TestDerivateCompressedPublicKey_1(t *testing.T) {
 	//https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses

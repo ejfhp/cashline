@@ -3,6 +3,7 @@ package keys
 import (
 	"crypto/ecdsa"
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcutil/base58"
@@ -34,9 +35,22 @@ func PrivateFromWIF(keyString string) (key []byte, compressed bool, err error) {
 	return key, compressed, nil
 }
 
-// ToWIF encode a private key to WIF (Wallet IMport Format) compressed or uncompressed
-func ToWIF(privateKey []byte, compressed bool) string {
-	return ""
+// ToWIF encode a private key (given as a hex string) to WIF (Wallet IMport Format) compressed or uncompressed
+func ToWIF(privateKeyHex string, compressed bool) (string, error) {
+	privKeyBytes, err := hex.DecodeString(privateKeyHex)
+	if err != nil {
+		return "", fmt.Errorf("Supplied string cannot be decoded as hex due to %v", err)
+	}
+	first := append([]byte{0x80}, privKeyBytes...)
+	if compressed {
+		first = append(first, 0x01)
+	}
+	second := sha256.Sum256(first)
+	third := sha256.Sum256(second[:])
+	checksum := third[:4]
+	fourth := append(first, checksum...)
+	encoded := base58.Encode(fourth)
+	return encoded, nil
 }
 
 // Public derivates a public key in compressed or uncompressed format from a private key
