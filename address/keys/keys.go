@@ -31,7 +31,6 @@ func PrivateFromWIF(keyString string) (key []byte, compressed bool, err error) {
 		compressed = true
 		key = decKey[:32]
 	}
-	fmt.Printf("Decoded key: %x compressed: %t\n", key, compressed)
 	return key, compressed, nil
 }
 
@@ -103,7 +102,7 @@ func toUncompressedBytes(pubK ecdsa.PublicKey) (uncompressedPubKey []byte) {
 
 func isEven(num *big.Int) (even bool) {
 	evenOdd := num.Bit(0) //O means X is even, 1 means X is odd
-	defer func() { fmt.Printf("Number %v is even: %v\n", num, even) }()
+	// defer func() { fmt.Printf("Number %v is even: %v\n", num, even) }()
 	even = true
 	if evenOdd == 1 {
 		even = false

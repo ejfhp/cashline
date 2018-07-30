@@ -143,7 +143,6 @@ func TestDerivateCompressedPublicKey_1(t *testing.T) {
 	if pubKeyAsString != expectedPubKey {
 		t.Errorf("Unexpected compressed pubKey actual:%v  expected:%v", pubKeyAsString, expectedPubKey)
 	}
-	t.Fail()
 }
 func TestDerivateCompressedPublicKey_2(t *testing.T) {
 	//https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
