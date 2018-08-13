@@ -1,4 +1,4 @@
-package address
+package cash
 
 import (
 	"fmt"
@@ -51,47 +51,8 @@ func init() {
 	}
 }
 
-// PolyMod calculates 40 bit checksum
-// Reference: https://github.com/bitcoincashorg/bitcoincash.org/blob/master/spec/cashaddr.md
-// Credits to https://github.com/cpacia/bchutil/blob/master/cashaddr.go
-func PolyMod(v []byte) uint64 {
-	var c uint64 = 1
-	for _, d := range v {
-		c0 := byte(c >> 35)
-		c = ((c & 0x07ffffffff) << 5) ^ uint64(d)
-
-		if c0&0x01 > 0 {
-			c ^= 0x98f2bc8e61
-		}
-		if c0&0x02 > 0 {
-			c ^= 0x79b76d99e2
-		}
-		if c0&0x04 > 0 {
-			c ^= 0xf33e5fb3c4
-		}
-		if c0&0x08 > 0 {
-			c ^= 0xae2eabe2a8
-		}
-		if c0&0x10 > 0 {
-			c ^= 0x1e4f43e470
-		}
-	}
-
-	return c ^ 1
-}
-
-// PrefixLower5Bit returns an array of byte with with the lower 5 bit of ecery prefix char
-func PrefixLower5Bit(prefix string) []byte {
-	ret := make([]byte, len(prefix)+1) // one more for the separator
-	for i := 0; i < len(prefix); i++ {
-		ret[i] = byte(prefix[i]) & 0x1f
-	}
-	ret[len(prefix)] = 0 // separator
-	return ret
-}
-
-// DecodePayload get the paylod of an address and return the decoded array of byte
-func DecodePayload(bch32 string) ([]byte, error) {
+// Base32Decode return a cashaddress base32 the decoded array of byte
+func Base32Decode(bch32 string) ([]byte, error) {
 	l := len(bch32)
 	decoded := make([]byte, l, l)
 	for i := 0; i < l; i++ {
@@ -103,4 +64,19 @@ func DecodePayload(bch32 string) ([]byte, error) {
 		decoded[i] = byte(v)
 	}
 	return decoded, nil
+}
+
+// Base32Encode return the given byte array encoded to a cashaddress base32 string
+func Base32Encode(bytes []byte) (string, error) {
+	l := len(bytes)
+	var encoded string
+	for i := 0; i < l; i++ {
+		n := int(bytes[i])
+		c, ok := ENCODEMAP[n]
+		if !ok {
+			return "", fmt.Errorf("value not allowed for base32 encoding %d", n)
+		}
+		encoded += string(c)
+	}
+	return encoded, nil
 }

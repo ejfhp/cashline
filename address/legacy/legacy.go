@@ -1,4 +1,4 @@
-package address
+package legacy
 
 import (
 	"crypto/sha256"
