@@ -1,49 +1,62 @@
 package cash
 
 import (
-	// "encoding/binary"
 	"fmt"
-	"golang.org/x/crypto/ripemd160"
+	"github.com/savardiego/cashline/address/keys"
 	"math"
 )
 
+// AddressTypeP2KH value for the Pay-To-Key-Hash type address
+const AddressTypeP2KH int8 = 0
+
+// FromPrivKey derivates the cashaddress from a private key, in compressed or uncompressed format
+func FromPrivKey(privKey []byte, compressed bool) (string, error) {
+	publicKeyBytes := keys.Public(privKey, compressed)
+	withprefix, err := FromPubKey(publicKeyBytes)
+	return withprefix, err
+}
+
+// FromWIF derivates a legacy address (version 1, the oldest) from a base58 encoded WIF private key, compressed/uncompressed depending on the WIF format.
+func FromWIF(privKeyWIF string) (string, error) {
+	decodedPrivKey, compressed, err := keys.PrivateFromWIF(privKeyWIF)
+	if err != nil {
+		return "", fmt.Errorf("cannot decode private key from base58 string: %v due to %v", privKeyWIF, err)
+	}
+	publicKey := keys.Public(decodedPrivKey, compressed)
+	withprefix, err := FromPubKey(publicKey)
+	return withprefix, nil
+}
+
 //FromPubKey returns a P2KH (ripemd160) mainnet (prefix:bitcoincash) bchaddress (withprefix, without prefix)
-func FromPubKey(pubKey []byte) (string, string, error) {
-	ripe160 := ripemd160.New()
-	ripe160.Write(pubKey)
-	ripemd160Hash := ripe160.Sum(nil)
+func FromPubKey(pubKey []byte) (string, error) {
+	hashed := keys.Hashed(pubKey)
 	prefix := "bitcoincash"
-	addrType := int8(0)                         //P2KH -> 0
-	hashSize, err := getHashSize(ripemd160Hash) //ripemd160 is 160 bit -> 0
+	withPrefix, _, err := addressFromHash(prefix, AddressTypeP2KH, hashed)
+	return withPrefix, err
+}
+
+// calculate the address given the prefix, the hash and the address type
+func addressFromHash(prefix string, addrType int8, hash []byte) (string, string, error) {
+	hashSize, err := getHashSize(hash) //ripemd160 is 160 bit -> 0
 	if err != nil {
 		return "", "", fmt.Errorf("cannot get hash size because %v", err)
 	}
 	versionByte := byte(addrType + hashSize)
-	fmt.Printf("version byte %d\n", versionByte)
-	prefixBytes := FullPrefixTo5Bit(prefix) //OK
-	fmt.Printf("prefix byte 5 %d\n", prefixBytes)
-	data := append([]byte{versionByte}, ripemd160Hash...)
-	fmt.Printf("data  %d\n", data)
+	prefixBytes := fullPrefixTo5Bit(prefix)
+	data := append([]byte{versionByte}, hash...)
 	data5bit, err := convert(data, 8, 5, false)
-	fmt.Printf("data 5 bits %d\n", data5bit)
 	if err != nil {
 		return "", "", fmt.Errorf("cannot convert data to 5 bit due to %v", err)
 	}
 	checksumData := append(append(prefixBytes, data5bit...), []byte{0, 0, 0, 0, 0, 0, 0, 0}...)
-	// checksum := PolyMod(checksumData)
-	// checksumBytes := make([]byte, 8)
-	// binary.BigEndian.PutUint64(checksumBytes, checksum)
-	// checksum5bit, err := convert(checksumBytes, 8, 5, false)
 	checksum5bit := getChecksum(checksumData)
 	if err != nil {
 		return "", "", fmt.Errorf("cannot convert checksum to 5 bit due to %v", err)
 	}
 	addressPayload := append(data5bit, checksum5bit...)
-	fmt.Printf("payload %d\n", addressPayload)
 	if err != nil {
 		return "", "", fmt.Errorf("cannot encode to Base32 due to %v", err)
 	}
-	fmt.Printf("address %x  %v\n", addressPayload, string(addressPayload))
 	encodedAddress, err := Base32Encode(addressPayload)
 	return prefix + ":" + encodedAddress, encodedAddress, nil
 }
@@ -56,7 +69,6 @@ func polyMod(v []byte) uint64 {
 	for _, d := range v {
 		c0 := byte(c >> 35)
 		c = ((c & 0x07ffffffff) << 5) ^ uint64(d)
-
 		if c0&0x01 > 0 {
 			c ^= 0x98f2bc8e61
 		}
@@ -76,6 +88,7 @@ func polyMod(v []byte) uint64 {
 	return c ^ 1
 }
 
+// getChcksum calculates the byte array of the checksum
 func getChecksum(checksumData []byte) []byte {
 	mod := polyMod(checksumData)
 	check := make([]byte, 8)
@@ -86,8 +99,8 @@ func getChecksum(checksumData []byte) []byte {
 	return check
 }
 
-// FullPrefixTo5Bit returns an array of byte with with the lower 5 bit of every prefix char plus a 0 for the colon separator
-func FullPrefixTo5Bit(prefix string) []byte {
+// fullPrefixTo5Bit returns an array of byte with with the lower 5 bit of every prefix char plus a 0 for the colon separator
+func fullPrefixTo5Bit(prefix string) []byte {
 	ret := make([]byte, len(prefix)+1) // one more for the separator
 	for i := 0; i < len(prefix); i++ {
 		ret[i] = byte(prefix[i]) & 0x1f
@@ -96,45 +109,7 @@ func FullPrefixTo5Bit(prefix string) []byte {
 	return ret
 }
 
-func fromHash(prefix string, addrType int8, hash []byte) (string, string, error) {
-	hashSize, err := getHashSize(hash) //ripemd160 is 160 bit -> 0
-	if err != nil {
-		return "", "", fmt.Errorf("cannot get hash size because %v", err)
-	}
-	versionByte := byte(addrType + hashSize)
-	fmt.Printf("version byte  %d\n", versionByte)
-	prefixBytes := FullPrefixTo5Bit(prefix) //OK
-	fmt.Printf("prefix byte 5 %d\n", prefixBytes)
-	data := append([]byte{versionByte}, hash...)
-	fmt.Printf("data          %d\n", data)
-	data5bit, err := convert(data, 8, 5, false)
-	fmt.Printf("data 5 bits   %d\n", data5bit)
-	if err != nil {
-		return "", "", fmt.Errorf("cannot convert data to 5 bit due to %v", err)
-	}
-	checksumData := append(append(prefixBytes, data5bit...), []byte{0, 0, 0, 0, 0, 0, 0, 0}...)
-	fmt.Printf("checksum data %d\n", checksumData)
-	// checksum := polyMod(checksumData)
-	// fmt.Printf("checksum      %d\n", checksum)
-	// checksumBytes := make([]byte, 8)
-	// binary.BigEndian.PutUint64(checksumBytes, checksum)
-	// fmt.Printf("checksum byte %d\n", checksumBytes)
-	// checksum5bit, err := convert(checksumBytes, 8, 5, false)
-	checksum5bit := getChecksum(checksumData)
-	fmt.Printf("checksum 5    %d\n", checksum5bit)
-	if err != nil {
-		return "", "", fmt.Errorf("cannot convert checksum to 5 bit due to %v", err)
-	}
-	addressPayload := append(data5bit, checksum5bit...)
-	fmt.Printf("payload       %d\n", addressPayload)
-	if err != nil {
-		return "", "", fmt.Errorf("cannot encode to Base32 due to %v", err)
-	}
-	fmt.Printf("address       %x  %v\n", addressPayload, string(addressPayload))
-	encodedAddress, err := Base32Encode(addressPayload)
-	return prefix + ":" + encodedAddress, encodedAddress, nil
-}
-
+// converts an array of byte with inSize bits to an array of byte with toSize bits
 func convert(data []byte, inSize uint, toSize uint, strict bool) ([]byte, error) {
 	var outLen int
 	if strict {

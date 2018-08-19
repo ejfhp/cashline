@@ -3,35 +3,21 @@ package cash
 import (
 	"bytes"
 	"encoding/hex"
-	"fmt"
 	"math/rand"
 	"strings"
 	"testing"
 )
 
 func TestChecksum(t *testing.T) {
-	// str := "prefix:x64nx6hz"
 	str := "bitcoincash:qpzry9x8gf2tvdw0s3jn54khce6mua7lcw20ayyn"
 	strSplit := strings.Split(str, ":")
 	prefix := strSplit[0]
 	payload := strSplit[1]
-	data := FullPrefixTo5Bit(prefix)
-	fmt.Println(data)
-	idx := byte('g')
-	n := DECODEMAP[idx]
-	fmt.Printf("Decoded value of %c (%d) is: %v\n", idx, idx, n)
-
-	d := ENCODEMAP[n]
-	fmt.Printf("Encoded char of %v is: %c (%d)\n", n, d, d)
-
-	decodedPrefix := FullPrefixTo5Bit(prefix)
-	fmt.Printf("Decoded prefix: %x\n", decodedPrefix)
+	decodedPrefix := fullPrefixTo5Bit(prefix)
 	decodedPayload, err := Base32Decode(payload)
-	fmt.Printf("Decoded payload: %x\n", decodedPayload)
 	if err != nil {
 		t.Errorf("Failed to decode payload %v due to: %v\n", payload, err)
 	}
-
 	dataToVerify := decodedPrefix
 	dataToVerify = append(dataToVerify, decodedPayload...)
 	chksum := polyMod(dataToVerify)
@@ -46,50 +32,112 @@ func TestChecksum(t *testing.T) {
 func TestFromUncompressedPubKey(t *testing.T) {
 	uncompressed := "044526CABB86DE7767718CA2FE13B2066BE44615DEF846A15E6F4441C114807373BAD033C052327C75B40B9D938645B59BDABBC30E9C9545B63D0F251A9A689490"
 	uncompressedAdd := "bitcoincash:qp842l6pwrsudd7t70c2epvcyg2xc297qq5clqxfgm"
-
 	pubKey, _ := hex.DecodeString(uncompressed)
-	withPrefix, onlyAddr, err := FromPubKey(pubKey)
+	withPrefix, err := FromPubKey(pubKey)
 	if err != nil {
 		t.Errorf("cannot generate address due to %v", err)
 	}
-	fmt.Printf("BCH ADDRESS %s %s\n", withPrefix, onlyAddr)
 	if withPrefix != uncompressedAdd {
 		t.Errorf("address should be %s but it is %s", uncompressedAdd, withPrefix)
-	}
-}
-
-func TestFromHash(t *testing.T) {
-	hash := []byte{118, 160, 64, 83, 189, 160, 168, 139, 218, 81, 119, 184, 106, 21, 195, 178, 159, 85, 152, 115}
-	add := "bitcoincash:qpm2qsznhks23z7629mms6s4cwef74vcwvy22gdx6a"
-
-	// pubKey, _ := hex.DecodeString(compressed)
-	withPrefix, onlyAddr, err := fromHash("bitcoincash", 0, hash)
-	if err != nil {
-		t.Errorf("cannot generate address due to %v", err)
-	}
-	fmt.Printf("BCH ADDRESS %s %s\n", withPrefix, onlyAddr)
-	if withPrefix != add {
-		t.Errorf("address should be %s but it is %s", add, withPrefix)
 	}
 }
 
 // compressed 024526CABB86DE7767718CA2FE13B2066BE44615DEF846A15E6F4441C114807373
 // compress bitcoincash:qqd86hz9tnuu98sxgmk48822xaqgh6hwvvhttn6r8h
 func TestFromCompressedPubKey(t *testing.T) {
-	// compressed := "024526CABB86DE7767718CA2FE13B2066BE44615DEF846A15E6F4441C114807373"
-	hash := []byte{118, 160, 64, 83, 189, 160, 168, 139, 218, 81, 119, 184, 106, 21, 195, 178, 159, 85, 152, 115}
+	compressed := "024526CABB86DE7767718CA2FE13B2066BE44615DEF846A15E6F4441C114807373"
 	compressedAdd := "bitcoincash:qqd86hz9tnuu98sxgmk48822xaqgh6hwvvhttn6r8h"
-
-	// pubKey, _ := hex.DecodeString(compressed)
-	withPrefix, onlyAddr, err := fromHash("bitcoincash", 0, hash)
+	pubKey, _ := hex.DecodeString(compressed)
+	withPrefix, err := FromPubKey(pubKey)
 	if err != nil {
 		t.Errorf("cannot generate address due to %v", err)
 	}
-	fmt.Printf("BCH ADDRESS %s %s\n", withPrefix, onlyAddr)
 	if withPrefix != compressedAdd {
 		t.Errorf("address should be %s but it is %s", compressedAdd, withPrefix)
 	}
 }
+
+func TestFromPrivKey(t *testing.T) {
+	privKey := "0D9693B7399372A42F871ACDC4ADDCEFA15C39E8B4E2B0035B18BBF75B1A7F61"
+	expUncompr := "bitcoincash:qqpfam9ksmp6a783y8jet60h4hmr6plp7ccag0qanq"
+	expCompres := "bitcoincash:qpz2x5tsyzf2ll7cph6ckzzpjkm96nn6qvkt5xk6l2"
+	k, err := hex.DecodeString(privKey)
+	if err != nil {
+		t.Errorf("cannot decode private key due to %v\n", err)
+	}
+	compressed, err := FromPrivKey(k, true)
+	if err != nil {
+		t.Errorf("cannot get compressed address due to %v\n", err)
+	}
+	if expCompres != compressed {
+		t.Errorf("compressed address should be %v but result is %v\n", expCompres, compressed)
+	}
+	uncompressed, err := FromPrivKey(k, false)
+	if err != nil {
+		t.Errorf("cannot get uncompressed address due to %v\n", err)
+	}
+	if expUncompr != uncompressed {
+		t.Errorf("uncompressed address should be %v but result is %v\n", expUncompr, uncompressed)
+	}
+}
+
+func TestFromBulkWIFCompressed(t *testing.T) {
+	keys := make([][]string, 3)
+	// PrivKey Compressed WIF, compressed address, uncompressed address
+	keys[0] = []string{"KwdJzVEt9vVc8RuLcz9tEDAYsMUk3bBoswUGSH4yt1Juxyi7gU3G", "bitcoincash:qqd86hz9tnuu98sxgmk48822xaqgh6hwvvhttn6r8h"}
+	keys[1] = []string{"Kwg8BEpwVFVGeMhW4tBhXq6rouvfqdNNzZaCm2bg7x7oxQEWqi1k", "bitcoincash:qpz2x5tsyzf2ll7cph6ckzzpjkm96nn6qvkt5xk6l2"}
+	keys[2] = []string{"L3fGTEJneiVzgmNg6NCeCJeQWKNHFp8zwRi2Xk968KiH4zSrRjC7", "bitcoincash:qzlwryqkrdnewf5yft6rjrvmgr8w3xemr5p3xype64"}
+	for _, v := range keys {
+		address, err := FromWIF(v[0])
+		if err != nil {
+			t.Errorf("test failed due to %v \n", err)
+		}
+		if address != v[1] {
+			t.Errorf("address from compressed pubkey should be %v but is %v\n", v[1], address)
+		}
+	}
+}
+
+func TestFromBulkWIFUncompressed(t *testing.T) {
+	keys := make([][]string, 3)
+	// PrivKey Compressed WIF, compressed address, uncompressed address
+	keys[0] = []string{"5Hudhfa3yrGzoYUGKaLghbvpYoKyRbw76CSD7BSNVmvuL43PtPd", "bitcoincash:qp842l6pwrsudd7t70c2epvcyg2xc297qq5clqxfgm"}
+	keys[1] = []string{"5Jqb9D6asTW3rkzWg61yWi8d4bnFrEtWKuWYKzgRsTL3hqNXCfZ", "bitcoincash:qpc5afcwdvqu0psg0usct5c6u3fnuyvfzqrt34z2zs"}
+	keys[2] = []string{"5KWJ95ZSBbkA2Rc32DJ6Eg7iXx7uJvWUuUPQqh7cn3SHDqAGmH8", "bitcoincash:qr3yg0y8la3ap6rtxh8uw4lttvl2ypc2gv699xqxad"}
+	for _, v := range keys {
+		address, err := FromWIF(v[0])
+		if err != nil {
+			t.Errorf("test failed due to %v \n", err)
+		}
+		if address != v[1] {
+			t.Errorf("address from uncompressed pubkey should be %v but is %v\n", v[1], address)
+		}
+	}
+}
+
+func TestFromHash(t *testing.T) {
+	hashes := make([][]byte, 3)
+	hashes[0] = []byte{118, 160, 64, 83, 189, 160, 168, 139, 218, 81, 119, 184, 106, 21, 195, 178, 159, 85, 152, 115}
+	hashes[1] = []byte{203, 72, 18, 50, 41, 156, 213, 116, 49, 81, 172, 75, 45, 99, 174, 25, 142, 123, 176, 169}
+	hashes[2] = []byte{1, 31, 40, 228, 115, 201, 95, 64, 19, 215, 213, 62, 197, 251, 195, 180, 45, 248, 237, 16}
+	addresses := make([]string, 3)
+	addresses[0] = "bitcoincash:qpm2qsznhks23z7629mms6s4cwef74vcwvy22gdx6a"
+	addresses[1] = "bitcoincash:qr95sy3j9xwd2ap32xkykttr4cvcu7as4y0qverfuy"
+	addresses[2] = "bitcoincash:qqq3728yw0y47sqn6l2na30mcw6zm78dzqre909m2r"
+	for i, h := range hashes {
+		withPrefix, onlyaddr, err := addressFromHash("bitcoincash", AddressTypeP2KH, h)
+		if !strings.Contains(withPrefix, onlyaddr) {
+			t.Errorf("withprefix and onlyaddr are not coherent %v %v", withPrefix, onlyaddr)
+		}
+		if err != nil {
+			t.Errorf("cannot generate address due to %v", err)
+		}
+		if withPrefix != addresses[i] {
+			t.Errorf("address should be %s but it is %s", addresses[i], withPrefix)
+		}
+	}
+}
+
 func randData(size int, max int) []byte {
 	data := make([]byte, size, size)
 	for i := 0; i < size; i++ {
@@ -105,7 +153,6 @@ func TestConvertError(t *testing.T) {
 	} else {
 		t.Logf("Error correctly returned: %v\n", err)
 	}
-
 	rd1 := randData(10, 31)
 	_, err = convert(rd1, 5, 8, true)
 	if err == nil {

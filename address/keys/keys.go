@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcutil/base58"
+	"golang.org/x/crypto/ripemd160"
 	"math/big"
 )
 
@@ -61,6 +62,15 @@ func Public(privateKey []byte, compressed bool) (pubKey []byte) {
 		pubKey = toUncompressedBytes(publicKey)
 	}
 	return pubKey
+}
+
+// Hashed returns the hashed (sha256 + ripemd160) version of the public key
+func Hashed(pubKey []byte) []byte {
+	sha256Hash := sha256.Sum256(pubKey)
+	ripe160 := ripemd160.New()
+	ripe160.Write(sha256Hash[:])
+	hash := ripe160.Sum(nil)
+	return hash
 }
 
 func derivatePublicKey(key []byte) ecdsa.PublicKey {

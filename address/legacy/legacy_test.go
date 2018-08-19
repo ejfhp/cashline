@@ -9,7 +9,10 @@ func TestUncompressedV1FromPubKey(t *testing.T) {
 	//https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
 	uncompressed := "04d0de0aaeaefad02b8bdc8a01a1b8b11c696bd3d66a2c5f10780d95b7df42645cd85228a6fb29940e858e7e55842ae2bd115d1ed7cc0e82d934e929c97648cb0a"
 	uncompressedPubKey, _ := hex.DecodeString(uncompressed)
-	address := FromPubKey(uncompressedPubKey)
+	address, err := FromPubKey(uncompressedPubKey)
+	if err != nil {
+		t.Errorf("failed due to %v\n", err)
+	}
 	expectedAddress := "1GAehh7TsJAHuUAeKZcXf5CnwuGuGgyX2S"
 	if address != expectedAddress {
 		t.Errorf("Decoded address was not the expected expected: %v, decoded: %v", expectedAddress, address)
@@ -19,7 +22,10 @@ func TestV1FromCompressedPubKey(t *testing.T) {
 	//https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
 	compressed := "02d0de0aaeaefad02b8bdc8a01a1b8b11c696bd3d66a2c5f10780d95b7df42645c"
 	compressedPubKey, _ := hex.DecodeString(compressed)
-	address := FromPubKey(compressedPubKey)
+	address, err := FromPubKey(compressedPubKey)
+	if err != nil {
+		t.Errorf("failed due to %v\n", err)
+	}
 	expectedAddress := "1LoVGDgRs9hTfTNJNuXKSpywcbdvwRXpmK"
 	if address != expectedAddress {
 		t.Errorf("Decoded address was not the expected expected: %v, decoded: %v", expectedAddress, address)
@@ -42,9 +48,12 @@ func TestCompressedFromPrivKey(t *testing.T) {
 	//https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
 	privKeyHexString := "18e14a7b6a307f426a94f8114701e7c8e774e7f9a47e2c2035db29a206321725" //5J1F7GHadZG3sCCKHCwg8Jvys9xUbFsjLnGec4H125Ny1V9nR6V
 	privKeyByte, err := hex.DecodeString(privKeyHexString)
-	address := FromPrivKey(privKeyByte, true)
 	if err != nil {
 		t.Errorf("Unexpected error while decoding address: %v", err)
+	}
+	address, err := FromPrivKey(privKeyByte, true)
+	if err != nil {
+		t.Errorf("failed due to %v\n", err)
 	}
 	expectedAddress := "1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs"
 	if address != expectedAddress {
@@ -55,9 +64,12 @@ func TestUncompressedFromPrivKey(t *testing.T) {
 	//https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
 	privKeyHexString := "18e14a7b6a307f426a94f8114701e7c8e774e7f9a47e2c2035db29a206321725" //5J1F7GHadZG3sCCKHCwg8Jvys9xUbFsjLnGec4H125Ny1V9nR6V
 	privKeyByte, err := hex.DecodeString(privKeyHexString)
-	address := FromPrivKey(privKeyByte, false)
 	if err != nil {
 		t.Errorf("Unexpected error while decoding address: %v", err)
+	}
+	address, err := FromPrivKey(privKeyByte, false)
+	if err != nil {
+		t.Errorf("failed due to %v\n", err)
 	}
 	expectedAddress := "16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM"
 	if address != expectedAddress {
@@ -66,6 +78,7 @@ func TestUncompressedFromPrivKey(t *testing.T) {
 }
 func TestBulkCompressedWIF(t *testing.T) {
 	// Generated with https://www.bitaddress.org/
+	// Address, Compressed WIF
 	keyAddress := [][]string{
 		[]string{"14rK9eCMHnRUY4CP4Ek2uE5nREZ2uddAAR", "KwEbTtuEaCieuJ7T4qtfn4hV3jqdpQSoRjiuyYS9vMVwWqzencHA"},
 		[]string{"1ASPfH9oUcdwFwpnC11wFqAQqJ2oo56P86", "L3WrDboiSWcZSV7oGzNp98doJZW1eWuJsgcrfSE4B99JEpneqo2r"},
@@ -90,6 +103,7 @@ func TestBulkCompressedWIF(t *testing.T) {
 
 func TestBulkUncompressedWIF(t *testing.T) {
 	// Generated with https://www.bitaddress.org/
+	// Address, Uncompressed WIF
 	keyAddress := [][]string{
 		[]string{"15C4WVsvSyG2YoFTsqo4kGZ7aMAgYHQz6p", "5K1cnGxJ8Z4QXacj7vtsr4C7WhZoZM5wPHtbDqMD4mwSKQjsK8e"},
 		[]string{"13FRL2cc2Pu1Lw8vPimp7TSoSrVmzrY8UP", "5KC92PcPuWD78ZJMby1vfSreDMh5uKonCBsSqMvT2bF9J3Eh7pT"},
