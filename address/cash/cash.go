@@ -35,6 +35,10 @@ func FromPubKey(pubKey []byte) (string, error) {
 	return withPrefix, err
 }
 
+func FromLegacy(legacyAddress string) {
+
+}
+
 // calculate the address given the prefix, the hash and the address type
 func addressFromHash(prefix string, addrType int8, hash []byte) (string, string, error) {
 	hashSize, err := getHashSize(hash) //ripemd160 is 160 bit -> 0

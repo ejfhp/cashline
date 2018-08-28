@@ -101,6 +101,21 @@ func TestBulkCompressedWIF(t *testing.T) {
 	}
 }
 
+func TestCheckAddress(t *testing.T) {
+	testAddress := make(map[string]bool)
+	testAddress["15C4WVsvSyG2YoFTsqo4kGZ7aMAgYHQz6p"] = true
+	for k, v := range testAddress {
+		addIsOk := CheckAddress(k)
+		if v != addIsOk {
+			t.Errorf("address was checked %t but is %t", addIsOk, v)
+		}
+	}
+}
+
+func TestThatGetHash(t *testing.T) {
+
+}
+
 func TestBulkUncompressedWIF(t *testing.T) {
 	// Generated with https://www.bitaddress.org/
 	// Address, Uncompressed WIF

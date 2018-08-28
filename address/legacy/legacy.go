@@ -5,18 +5,24 @@ import (
 	"fmt"
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/savardiego/cashline/address/keys"
+	"reflect"
 )
 
 // FromPubKey derivates a legacy address (version 1, the oldest) from a public key
 func FromPubKey(pubKey []byte) (string, error) {
 	hashed := keys.Hashed(pubKey)
 	withVersion := append([]byte{0x00}, hashed...)
-	withVersionSha256 := sha256.Sum256(withVersion)
-	withVersionSha256 = sha256.Sum256(withVersionSha256[:])
-	checkSum := withVersionSha256[:4]
+	checkSum := checksum(withVersion)
 	withVersionAndChecksum := append(withVersion, checkSum...)
 	address := base58.Encode(withVersionAndChecksum)
 	return address, nil
+}
+
+func checksum(hashWithVer []byte) []byte {
+	withVersionSha256 := sha256.Sum256(hashWithVer)
+	withVersionSha256 = sha256.Sum256(withVersionSha256[:])
+	checkSum := withVersionSha256[:4]
+	return checkSum
 }
 
 // FromPrivKey derivates a legacy address (version 1, the oldest) from a private key, in compressed or uncompressed format
@@ -25,6 +31,19 @@ func FromPrivKey(privKey []byte, compressed bool) (string, error) {
 	address, err := FromPubKey(publicKeyBytes)
 	return address, err
 }
+
+// CheckAddress checks the checksum
+func CheckAddress(address string) bool {
+	addressBytes := base58.Decode(address)
+	checksumPart := addressBytes[len(addressBytes)-4:]
+	hashPart := addressBytes[:len(addressBytes)-4]
+	check := checksum(hashPart)
+	return reflect.DeepEqual(check, checksumPart)
+}
+
+// func GetPubKeyHash(address string) ([]byte, error) {
+
+// }
 
 // FromWIF derivates a legacy address (version 1, the oldest) from a base58 encoded WIF private key, compressed/uncompressed depending on the WIF format.
 func FromWIF(privKey string) (string, error) {
