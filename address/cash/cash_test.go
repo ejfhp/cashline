@@ -83,7 +83,7 @@ func TestFromPrivKey(t *testing.T) {
 
 func TestFromBulkWIFCompressed(t *testing.T) {
 	keys := make([][]string, 3)
-	// PrivKey Compressed WIF, compressed address, uncompressed address
+	// PrivKey Compressed WIF, cashaddress
 	keys[0] = []string{"KwdJzVEt9vVc8RuLcz9tEDAYsMUk3bBoswUGSH4yt1Juxyi7gU3G", "bitcoincash:qqd86hz9tnuu98sxgmk48822xaqgh6hwvvhttn6r8h"}
 	keys[1] = []string{"Kwg8BEpwVFVGeMhW4tBhXq6rouvfqdNNzZaCm2bg7x7oxQEWqi1k", "bitcoincash:qpz2x5tsyzf2ll7cph6ckzzpjkm96nn6qvkt5xk6l2"}
 	keys[2] = []string{"L3fGTEJneiVzgmNg6NCeCJeQWKNHFp8zwRi2Xk968KiH4zSrRjC7", "bitcoincash:qzlwryqkrdnewf5yft6rjrvmgr8w3xemr5p3xype64"}
@@ -111,6 +111,25 @@ func TestFromBulkWIFUncompressed(t *testing.T) {
 		}
 		if address != v[1] {
 			t.Errorf("address from uncompressed pubkey should be %v but is %v\n", v[1], address)
+		}
+	}
+}
+func TestFromBulkLegacy(t *testing.T) {
+	legacyConverted := make([][]string, 6)
+	// Legacy address, cashaddress
+	legacyConverted[0] = []string{"15C4WVsvSyG2YoFTsqo4kGZ7aMAgYHQz6p", "qqklsq0dhqaksh3mchylnhsfv2kmutza6u38dqh8k4"}
+	legacyConverted[1] = []string{"1Eo9je9UYUpgnJbqBnoDFb26SoP4LLc4zk", "qzt4gra228ptq5kmz529h0df5kafjtmgzv24vrlc9q"}
+	legacyConverted[2] = []string{"13FRL2cc2Pu1Lw8vPimp7TSoSrVmzrY8UP", "qqv25cs3052kdru55qdu53n778fs3d0hzckqt8nxyc"}
+	legacyConverted[3] = []string{"1KoeHg1ygc5NG2sKHRpaXnfTQwgYy4e5Ka", "qr8yfp3ur5hw3r4mjsgjlu29g6gwrjj6yuhd0mnzg9"}
+	legacyConverted[4] = []string{"16DhH7baDeg3uX8hsyf4Q1k1fUWyqTMzFs", "qqun703p9sc6cdg6vhhmq4tafdspjdk4jscufk6wzs"}
+	legacyConverted[5] = []string{"12xMdxaABaj6yahaLUDRVzKRBSMt6Pe4ci", "qq2hqwcju8plkp5047yjgqh8h9ayn4rwccljj6k694"}
+	for _, v := range legacyConverted {
+		withPref, noPref, err := FromLegacyP2PKH(v[0])
+		if err != nil {
+			t.Errorf("test failed due to %v \n", err)
+		}
+		if noPref != v[1] || withPref != "bitcoincash:"+v[1] {
+			t.Errorf("address converted from %v should be %v but is %v - %v\n", v[0], v[1], noPref, withPref)
 		}
 	}
 }

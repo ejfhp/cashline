@@ -41,10 +41,6 @@ func CheckAddress(address string) bool {
 	return reflect.DeepEqual(check, checksumPart)
 }
 
-// func GetPubKeyHash(address string) ([]byte, error) {
-
-// }
-
 // FromWIF derivates a legacy address (version 1, the oldest) from a base58 encoded WIF private key, compressed/uncompressed depending on the WIF format.
 func FromWIF(privKey string) (string, error) {
 	decodedPrivKey, compressed, err := keys.PrivateFromWIF(privKey)

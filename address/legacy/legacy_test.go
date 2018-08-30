@@ -112,10 +112,6 @@ func TestCheckAddress(t *testing.T) {
 	}
 }
 
-func TestThatGetHash(t *testing.T) {
-
-}
-
 func TestBulkUncompressedWIF(t *testing.T) {
 	// Generated with https://www.bitaddress.org/
 	// Address, Uncompressed WIF

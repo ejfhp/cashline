@@ -2,12 +2,16 @@ package cash
 
 import (
 	"fmt"
+	"github.com/btcsuite/btcutil/base58"
 	"github.com/savardiego/cashline/address/keys"
 	"math"
 )
 
 // AddressTypeP2KH value for the Pay-To-Key-Hash type address
 const AddressTypeP2KH int8 = 0
+
+// PrefixMain is the main network address prefix "bitcoincash"
+const PrefixMain = "bitcoincash"
 
 // FromPrivKey derivates the cashaddress from a private key, in compressed or uncompressed format
 func FromPrivKey(privKey []byte, compressed bool) (string, error) {
@@ -30,13 +34,15 @@ func FromWIF(privKeyWIF string) (string, error) {
 //FromPubKey returns a P2KH (ripemd160) mainnet (prefix:bitcoincash) bchaddress (withprefix, without prefix)
 func FromPubKey(pubKey []byte) (string, error) {
 	hashed := keys.Hashed(pubKey)
-	prefix := "bitcoincash"
-	withPrefix, _, err := addressFromHash(prefix, AddressTypeP2KH, hashed)
+	withPrefix, _, err := addressFromHash(PrefixMain, AddressTypeP2KH, hashed)
 	return withPrefix, err
 }
 
-func FromLegacy(legacyAddress string) {
-
+// FromLegacyP2PKH convert from a Public Key Hash legacy address (withPrefix, withoutPrefix, error)
+func FromLegacyP2PKH(legacyAddress string) (string, string, error) {
+	addressBytes := base58.Decode(legacyAddress)
+	hashPart := addressBytes[1 : len(addressBytes)-4]
+	return addressFromHash(PrefixMain, AddressTypeP2KH, hashPart)
 }
 
 // calculate the address given the prefix, the hash and the address type
