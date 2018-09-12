@@ -1,4 +1,4 @@
-package cash
+package cashaddr
 
 import (
 	"fmt"

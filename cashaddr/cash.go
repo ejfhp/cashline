@@ -1,9 +1,10 @@
-package cash
+package cashaddr
 
 import (
+	"encoding/hex"
 	"fmt"
 	"github.com/btcsuite/btcutil/base58"
-	"github.com/savardiego/cashline/address/keys"
+	"github.com/savardiego/cashline/keys"
 	"math"
 )
 
@@ -20,6 +21,15 @@ func FromPrivKey(privKey []byte, compressed bool) (string, error) {
 	return withprefix, err
 }
 
+// FromPrivKeyHex derivates the cashaddress from a private key (HEX string), in compressed or uncompressed format
+func FromPrivKeyHex(privKey string, compressed bool) (string, error) {
+	bytes, err := hex.DecodeString(privKey)
+	if err != nil {
+		return "", err
+	}
+	return FromPrivKey(bytes, compressed)
+}
+
 // FromWIF derivates a legacy address (version 1, the oldest) from a base58 encoded WIF private key, compressed/uncompressed depending on the WIF format.
 func FromWIF(privKeyWIF string) (string, error) {
 	decodedPrivKey, compressed, err := keys.PrivateFromWIF(privKeyWIF)
@@ -31,18 +41,28 @@ func FromWIF(privKeyWIF string) (string, error) {
 	return withprefix, nil
 }
 
-//FromPubKey returns a P2KH (ripemd160) mainnet (prefix:bitcoincash) bchaddress (withprefix, without prefix)
+//FromPubKey returns a P2KH (ripemd160) mainnet (prefix:bitcoincash) bchaddress from a public key
 func FromPubKey(pubKey []byte) (string, error) {
 	hashed := keys.Hashed(pubKey)
 	withPrefix, _, err := addressFromHash(PrefixMain, AddressTypeP2KH, hashed)
 	return withPrefix, err
 }
 
+// FromPubKeyHex returns a P2KH (ripemd160) mainnet (prefix:bitcoincash) bchaddress from a public key (HEX string)
+func FromPubKeyHex(privKey string) (string, error) {
+	bytes, err := hex.DecodeString(privKey)
+	if err != nil {
+		return "", err
+	}
+	return FromPubKey(bytes)
+}
+
 // FromLegacyP2PKH convert from a Public Key Hash legacy address (withPrefix, withoutPrefix, error)
-func FromLegacyP2PKH(legacyAddress string) (string, string, error) {
+func FromLegacyP2PKH(legacyAddress string) (string, error) {
 	addressBytes := base58.Decode(legacyAddress)
 	hashPart := addressBytes[1 : len(addressBytes)-4]
-	return addressFromHash(PrefixMain, AddressTypeP2KH, hashPart)
+	withPrefix, _, err := addressFromHash(PrefixMain, AddressTypeP2KH, hashPart)
+	return withPrefix, err
 }
 
 // calculate the address given the prefix, the hash and the address type

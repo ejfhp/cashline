@@ -1,4 +1,4 @@
-package cash
+package cashaddr
 
 import (
 	"bytes"
@@ -57,7 +57,7 @@ func TestFromCompressedPubKey(t *testing.T) {
 	}
 }
 
-func TestFromPrivKey(t *testing.T) {
+func TestFromPrivKeyBytes(t *testing.T) {
 	privKey := "0D9693B7399372A42F871ACDC4ADDCEFA15C39E8B4E2B0035B18BBF75B1A7F61"
 	expUncompr := "bitcoincash:qqpfam9ksmp6a783y8jet60h4hmr6plp7ccag0qanq"
 	expCompres := "bitcoincash:qpz2x5tsyzf2ll7cph6ckzzpjkm96nn6qvkt5xk6l2"
@@ -73,6 +73,25 @@ func TestFromPrivKey(t *testing.T) {
 		t.Errorf("compressed address should be %v but result is %v\n", expCompres, compressed)
 	}
 	uncompressed, err := FromPrivKey(k, false)
+	if err != nil {
+		t.Errorf("cannot get uncompressed address due to %v\n", err)
+	}
+	if expUncompr != uncompressed {
+		t.Errorf("uncompressed address should be %v but result is %v\n", expUncompr, uncompressed)
+	}
+}
+func TestFromPrivKeyHex(t *testing.T) {
+	privKey := "0D9693B7399372A42F871ACDC4ADDCEFA15C39E8B4E2B0035B18BBF75B1A7F61"
+	expUncompr := "bitcoincash:qqpfam9ksmp6a783y8jet60h4hmr6plp7ccag0qanq"
+	expCompres := "bitcoincash:qpz2x5tsyzf2ll7cph6ckzzpjkm96nn6qvkt5xk6l2"
+	compressed, err := FromPrivKeyHex(privKey, true)
+	if err != nil {
+		t.Errorf("cannot get compressed address due to %v\n", err)
+	}
+	if expCompres != compressed {
+		t.Errorf("compressed address should be %v but result is %v\n", expCompres, compressed)
+	}
+	uncompressed, err := FromPrivKeyHex(privKey, false)
 	if err != nil {
 		t.Errorf("cannot get uncompressed address due to %v\n", err)
 	}
@@ -124,12 +143,12 @@ func TestFromBulkLegacy(t *testing.T) {
 	legacyConverted[4] = []string{"16DhH7baDeg3uX8hsyf4Q1k1fUWyqTMzFs", "qqun703p9sc6cdg6vhhmq4tafdspjdk4jscufk6wzs"}
 	legacyConverted[5] = []string{"12xMdxaABaj6yahaLUDRVzKRBSMt6Pe4ci", "qq2hqwcju8plkp5047yjgqh8h9ayn4rwccljj6k694"}
 	for _, v := range legacyConverted {
-		withPref, noPref, err := FromLegacyP2PKH(v[0])
+		withPref, err := FromLegacyP2PKH(v[0])
 		if err != nil {
 			t.Errorf("test failed due to %v \n", err)
 		}
-		if noPref != v[1] || withPref != "bitcoincash:"+v[1] {
-			t.Errorf("address converted from %v should be %v but is %v - %v\n", v[0], v[1], noPref, withPref)
+		if withPref != "bitcoincash:"+v[1] {
+			t.Errorf("address converted from %v should be %v but is %v\n", v[0], "bitcoincash:"+v[1], withPref)
 		}
 	}
 }

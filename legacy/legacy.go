@@ -4,7 +4,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"github.com/btcsuite/btcutil/base58"
-	"github.com/savardiego/cashline/address/keys"
+	"github.com/savardiego/cashline/keys"
 	"reflect"
 )
 
