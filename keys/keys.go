@@ -13,7 +13,7 @@ import (
 )
 
 const diceSeqRequiredLength = 99
-const binarySeqRequiredLength = 256
+const coinflipSeqRequiredLength = 256
 
 var maxValueForKey *big.Int
 var minValueForKey *big.Int
@@ -55,7 +55,10 @@ func FromDiceSequence(sequence string) (key []byte, err error) {
 		return nil, fmt.Errorf("given sequence is %d long, must be %d", len(sequence), diceSeqRequiredLength)
 	}
 	bi := new(big.Int)
-	bi, ok := bi.SetString(sequence, 2)
+	bi, ok := bi.SetString(sequence, 6)
+	if !ok {
+		return nil, fmt.Errorf("big.Int.SetString return false for sequence %v", sequence)
+	}
 	if !isValidKey(bi) || !ok {
 		return nil, errors.New("input sequence represents a number not acceptable as private key")
 	}
@@ -63,13 +66,16 @@ func FromDiceSequence(sequence string) (key []byte, err error) {
 	return privKey, nil
 }
 
-// FromDiceSequence returns a private key generated from a base6 sequence of 99 0-5 chars
+// FromCoinflipSequence returns a private key generated from a base2 sequence of 256 0-1 chars
 func FromCoinflipSequence(sequence string) (key []byte, err error) {
-	if len(sequence) != diceSeqRequiredLength {
+	if len(sequence) != coinflipSeqRequiredLength {
 		return nil, fmt.Errorf("given sequence is %d long, must be %d", len(sequence), diceSeqRequiredLength)
 	}
 	bi := new(big.Int)
 	bi, ok := bi.SetString(sequence, 2)
+	if !ok {
+		return nil, fmt.Errorf("big.Int.SetString return false for sequence %v", sequence)
+	}
 	if !isValidKey(bi) || !ok {
 		return nil, errors.New("input sequence represents a number not acceptable as private key")
 	}
