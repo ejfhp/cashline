@@ -4,12 +4,26 @@ import (
 	"crypto/ecdsa"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcutil/base58"
 	"golang.org/x/crypto/ripemd160"
 	"math/big"
 )
+
+const diceSeqRequiredLength = 99
+const binarySeqRequiredLength = 256
+
+var maxValueForKey *big.Int
+var minValueForKey *big.Int
+
+func init() {
+	maxValueForKey = new(big.Int)
+	maxValueForKey.SetString("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364140", 16)
+	minValueForKey = new(big.Int)
+	minValueForKey.SetString("1", 16)
+}
 
 // PrivateFromWIF decodes a base58 encoded key (compressed or uncompressed) (WIF Wallet Import Format) to []byte
 func PrivateFromWIF(keyString string) (key []byte, compressed bool, err error) {
@@ -33,6 +47,34 @@ func PrivateFromWIF(keyString string) (key []byte, compressed bool, err error) {
 		key = decKey[:32]
 	}
 	return key, compressed, nil
+}
+
+// FromDiceSequence returns a private key generated from a base6 sequence of 99 0-5 chars
+func FromDiceSequence(sequence string) (key []byte, err error) {
+	if len(sequence) != diceSeqRequiredLength {
+		return nil, fmt.Errorf("given sequence is %d long, must be %d", len(sequence), diceSeqRequiredLength)
+	}
+	bi := new(big.Int)
+	bi, ok := bi.SetString(sequence, 2)
+	if !isValidKey(bi) || !ok {
+		return nil, errors.New("input sequence represents a number not acceptable as private key")
+	}
+	privKey := bi.Bytes()
+	return privKey, nil
+}
+
+// FromDiceSequence returns a private key generated from a base6 sequence of 99 0-5 chars
+func FromCoinflipSequence(sequence string) (key []byte, err error) {
+	if len(sequence) != diceSeqRequiredLength {
+		return nil, fmt.Errorf("given sequence is %d long, must be %d", len(sequence), diceSeqRequiredLength)
+	}
+	bi := new(big.Int)
+	bi, ok := bi.SetString(sequence, 2)
+	if !isValidKey(bi) || !ok {
+		return nil, errors.New("input sequence represents a number not acceptable as private key")
+	}
+	privKey := bi.Bytes()
+	return privKey, nil
 }
 
 // ToWIF encode a private key (given as a hex string) to WIF (Wallet IMport Format) compressed or uncompressed
@@ -110,6 +152,21 @@ func toUncompressedBytes(pubK ecdsa.PublicKey) (uncompressedPubKey []byte) {
 	return uncompressedPubKey
 }
 
+func isValidKey(keyNum *big.Int) bool {
+	var notTooSmall bool
+	var notTooBig bool
+	if keyNum.Cmp(minValueForKey) >= 0 {
+		notTooSmall = true
+	}
+	if keyNum.Cmp(maxValueForKey) <= 0 {
+		notTooBig = true
+	}
+	if notTooSmall && notTooBig {
+		return true
+	}
+	return false
+}
+
 func isEven(num *big.Int) (even bool) {
 	evenOdd := num.Bit(0) //O means X is even, 1 means X is odd
 	// defer func() { fmt.Printf("Number %v is even: %v\n", num, even) }()
@@ -118,5 +175,4 @@ func isEven(num *big.Int) (even bool) {
 		even = false
 	}
 	return
-
 }
