@@ -6,10 +6,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math/big"
+	"strconv"
+
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcutil/base58"
 	"golang.org/x/crypto/ripemd160"
-	"math/big"
 )
 
 const diceSeqRequiredLength = 99
@@ -54,10 +56,18 @@ func FromDiceSequence(sequence string) (key []byte, err error) {
 	if len(sequence) != diceSeqRequiredLength {
 		return nil, fmt.Errorf("given sequence is %d long, must be %d", len(sequence), diceSeqRequiredLength)
 	}
+	basesix := ""
+	for _, c := range []byte(sequence) {
+		n, err := strconv.ParseInt(string(c), 10, 8)
+		if err != nil {
+			return nil, fmt.Errorf("problems with char %c due to: %v", c, err)
+		}
+		basesix += strconv.Itoa(int(n - 1))
+	}
 	bi := new(big.Int)
-	bi, ok := bi.SetString(sequence, 6)
+	bi, ok := bi.SetString(basesix, 6)
 	if !ok {
-		return nil, fmt.Errorf("big.Int.SetString return false for sequence %v", sequence)
+		return nil, fmt.Errorf("big.Int.SetString return false for sequence %v", basesix)
 	}
 	if !isValidKey(bi) || !ok {
 		return nil, errors.New("input sequence represents a number not acceptable as private key")

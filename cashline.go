@@ -3,8 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/savardiego/cashline/cashaddr"
 	"os"
+
+	"github.com/savardiego/cashline/cashaddr"
 )
 
 //https://blog.rapid7.com/2016/08/04/build-a-simple-cli-tool-with-golang/
@@ -14,22 +15,31 @@ func main() {
 	legacyP2PKH := addressSet.String("legacyP2PKH", "", "Legacy P2PKH Address to convert to Cashaddr")
 	privkey := addressSet.String("privkey", "", "Private Key (HEX)")
 	pubkey := addressSet.String("pubkey", "", "Public Key (HEX)")
+	keysSet := flag.NewFlagSet("keys", flag.ExitOnError)
+	diceSequence := keysSet.String("dices", "", "99 dice number (1-6)")
+	coinflipSequence := keysSet.String("coinflips", "", "256 coinflip number (0-1)")
+	flags := make([]*flag.FlagSet, 2, 2)
+	flags[0] = addressSet
+	flags[1] = keysSet
 
-	if len(os.Args) == 0 {
-		flag.PrintDefaults()
+	if len(os.Args) < 2 {
+		printDefaults(flags)
 		os.Exit(0)
 	}
 
 	switch os.Args[1] {
 	case "address":
 		addressSet.Parse(os.Args[2:])
+	case "keys":
+		keysSet.Parse(os.Args[2:])
 	default:
 		fmt.Printf("Command unknown: %v\n", os.Args[1])
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
 
-	if addressSet.Parsed() {
+	switch {
+	case addressSet.Parsed():
 		fmt.Println()
 		if addressSet.NFlag() < 1 {
 			addressSet.PrintDefaults()
@@ -76,5 +86,31 @@ func main() {
 			}
 			fmt.Println()
 		}
+	case keysSet.Parsed():
+		fmt.Println()
+		if keysSet.NFlag() < 1 {
+			keysSet.PrintDefaults()
+		}
+		if len(*diceSequence) != 0 {
+			fmt.Printf("Dice sequence: %v\n", *diceSequence)
+			fmt.Println()
+		}
+		if len(*coinflipSequence) != 0 {
+			fmt.Printf("Coinflip sequence: %v\n", *legacyP2PKH)
+			fmt.Println()
+		}
+	}
+}
+
+func printDefaults(flags []*flag.FlagSet) {
+	fmt.Printf("Usage: cashline <command> [options]\n")
+	fmt.Printf("Please specify a command: \n")
+	for i, f := range flags {
+		fmt.Printf(" %d- %v\n", i, f.Name())
+	}
+	for i, f := range flags {
+		fmt.Printf("\n")
+		fmt.Printf("%d) %v\n", i, f.Name())
+		f.PrintDefaults()
 	}
 }
