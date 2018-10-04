@@ -1,9 +1,12 @@
 package main
 
 import (
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"os"
+
+	"github.com/savardiego/cashline/keys"
 
 	"github.com/savardiego/cashline/cashaddr"
 )
@@ -16,8 +19,8 @@ func main() {
 	privkey := addressSet.String("privkey", "", "Private Key (HEX)")
 	pubkey := addressSet.String("pubkey", "", "Public Key (HEX)")
 	keysSet := flag.NewFlagSet("keys", flag.ExitOnError)
-	diceSequence := keysSet.String("dices", "", "99 dice number (1-6)")
-	coinflipSequence := keysSet.String("coinflips", "", "256 coinflip number (0-1)")
+	diceSequence := keysSet.String("dice", "", "99 dice number (1-6)")
+	coinflipSequence := keysSet.String("coinflip", "", "256 coinflip number (0-1)")
 	flags := make([]*flag.FlagSet, 2, 2)
 	flags[0] = addressSet
 	flags[1] = keysSet
@@ -40,51 +43,34 @@ func main() {
 
 	switch {
 	case addressSet.Parsed():
-		fmt.Println()
 		if addressSet.NFlag() < 1 {
 			addressSet.PrintDefaults()
 		}
 		if len(*wif) != 0 {
-			fmt.Printf("WIF: %v\n", *wif)
+			fmt.Printf("\nWIF: %v\n", *wif)
 			address, err := cashaddr.FromWIF(*wif)
-			if err != nil {
-				fmt.Printf("Something bad has happened.. %v\n", err)
-			} else {
-				fmt.Printf("\t%v\n", address)
-			}
-			fmt.Println()
+			exitOnError(err)
+			printResult(address, "cashaddress")
 		}
 		if len(*legacyP2PKH) != 0 {
-			fmt.Printf("Legacy P2PKH: %v\n", *legacyP2PKH)
+			fmt.Printf("\nLegacy P2PKH: %v\n", *legacyP2PKH)
 			address, err := cashaddr.FromLegacyP2PKH(*legacyP2PKH)
-			if err != nil {
-				fmt.Printf("Something bad has happened.. %v\n", err)
-			} else {
-				fmt.Printf("\t%v\n", address)
-			}
-			fmt.Println()
+			exitOnError(err)
+			printResult(address, "cashaddress")
 		}
 		if len(*privkey) != 0 {
-			fmt.Printf("Private Key: %v\n", *privkey)
+			fmt.Printf("\nPrivate Key: %v\n", *privkey)
 			compressed, err := cashaddr.FromPrivKeyHex(*privkey, true)
 			uncompress, err := cashaddr.FromPrivKeyHex(*privkey, false)
-			if err != nil {
-				fmt.Printf("Something bad has happened.. %v\n", err)
-			} else {
-				fmt.Printf("\t%v compressed\n", compressed)
-				fmt.Printf("\t%v uncompressed\n", uncompress)
-			}
-			fmt.Println()
+			exitOnError(err)
+			printResult(compressed, "compressed cashaddress")
+			printResult(uncompress, "uncompressed cashaddress")
 		}
 		if len(*pubkey) != 0 {
-			fmt.Printf("Public Key: %v\n", *pubkey)
+			fmt.Printf("\nPublic Key: %v\n", *pubkey)
 			address, err := cashaddr.FromPubKeyHex(*pubkey)
-			if err != nil {
-				fmt.Printf("Something bad has happened.. %v\n", err)
-			} else {
-				fmt.Printf("\t%v\n", address)
-			}
-			fmt.Println()
+			exitOnError(err)
+			printResult(address, "cashaddress")
 		}
 	case keysSet.Parsed():
 		fmt.Println()
@@ -92,12 +78,16 @@ func main() {
 			keysSet.PrintDefaults()
 		}
 		if len(*diceSequence) != 0 {
-			fmt.Printf("Dice sequence: %v\n", *diceSequence)
-			fmt.Println()
+			fmt.Printf("\nDice sequence: %v\n", *diceSequence)
+			key, err := keys.FromDiceSequence(*diceSequence)
+			exitOnError(err)
+			describeKey(key)
 		}
 		if len(*coinflipSequence) != 0 {
-			fmt.Printf("Coinflip sequence: %v\n", *legacyP2PKH)
-			fmt.Println()
+			fmt.Printf("\nCoinflip sequence: %v\n", *coinflipSequence)
+			key, err := keys.FromCoinflipSequence(*coinflipSequence)
+			exitOnError(err)
+			describeKey(key)
 		}
 	}
 }
@@ -113,4 +103,35 @@ func printDefaults(flags []*flag.FlagSet) {
 		fmt.Printf("%d) %v\n", i, f.Name())
 		f.PrintDefaults()
 	}
+}
+
+func describeKey(key []byte) {
+	keyStr := hex.EncodeToString(key)
+	compWIF, err := keys.ToWIF(keyStr, true)
+	exitOnError(err)
+	printResult(compWIF, "compressed WIF")
+	address, err := cashaddr.FromWIF(compWIF)
+	exitOnError(err)
+	printResult(address, "compressed cashaddress")
+	uncoWIF, err := keys.ToWIF(keyStr, false)
+	exitOnError(err)
+	printResult(uncoWIF, "uncompressed WIF")
+	address, err = cashaddr.FromWIF(uncoWIF)
+	exitOnError(err)
+	printResult(address, "uncompressed cashaddress")
+	printResult(keyStr, "key in HEX")
+	printResult(hex.EncodeToString(keys.Public(key, true)), "compressed public key in HEX")
+	printResult(hex.EncodeToString(keys.Public(key, false)), "uncompressed public key in HEX")
+}
+
+func printResult(value, description string) {
+	fmt.Printf("\t%v %s\n", value, description)
+}
+
+func exitOnError(err error) {
+	if err != nil {
+		fmt.Printf("Something bad has happened: %v\n", err)
+		os.Exit(1)
+	}
+
 }

@@ -97,7 +97,7 @@ func FromCoinflipSequence(sequence string) (key []byte, err error) {
 func ToWIF(privateKeyHex string, compressed bool) (string, error) {
 	privKeyBytes, err := hex.DecodeString(privateKeyHex)
 	if err != nil {
-		return "", fmt.Errorf("Supplied string cannot be decoded as hex due to %v", err)
+		return "", fmt.Errorf("supplied string cannot be decoded as hex due to %v", err)
 	}
 	first := append([]byte{0x80}, privKeyBytes...)
 	if compressed {
