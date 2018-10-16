@@ -3,7 +3,6 @@ package keys
 import (
 	"crypto/ecdsa"
 	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -11,11 +10,18 @@ import (
 
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/btcsuite/btcutil/base58"
+	bip39 "github.com/tyler-smith/go-bip39"
 	"golang.org/x/crypto/ripemd160"
 )
 
-const diceSeqRequiredLength = 99
-const coinflipSeqRequiredLength = 256
+// DiceSeqRequiredLength is the number of required dice results
+const DiceSeqRequiredLength = 99
+
+// CoinflipSeqRequiredLength is the number of required coin flip results
+const CoinflipSeqRequiredLength = 256
+
+// HexSeqRequiredLength is the number of required hex chars
+const HexSeqRequiredLength = 64
 
 var maxValueForKey *big.Int
 var minValueForKey *big.Int
@@ -53,53 +59,31 @@ func PrivateFromWIF(keyString string) (key []byte, compressed bool, err error) {
 
 // FromDiceSequence returns a private key generated from a base6 sequence of 99 0-5 chars
 func FromDiceSequence(sequence string) (key []byte, err error) {
-	if len(sequence) != diceSeqRequiredLength {
-		return nil, fmt.Errorf("given sequence is %d long, must be %d", len(sequence), diceSeqRequiredLength)
+	if len(sequence) != DiceSeqRequiredLength {
+		return nil, fmt.Errorf("given sequence is %d long, must be %d", len(sequence), DiceSeqRequiredLength)
 	}
-	basesix := ""
-	for _, c := range []byte(sequence) {
-		n, err := strconv.ParseInt(string(c), 10, 8)
-		if err != nil {
-			return nil, fmt.Errorf("problems with char %c due to: %v", c, err)
-		}
-		basesix += strconv.Itoa(int(n - 1))
+	privKey, err := diceKey(sequence)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read sequence: %v", err)
 	}
-	bi := new(big.Int)
-	bi, ok := bi.SetString(basesix, 6)
-	if !ok {
-		return nil, fmt.Errorf("big.Int.SetString return false for sequence %v", basesix)
-	}
-	if !isValidKey(bi) || !ok {
-		return nil, errors.New("input sequence represents a number not acceptable as private key")
-	}
-	privKey := bi.Bytes()
 	return privKey, nil
 }
 
 // FromCoinflipSequence returns a private key generated from a base2 sequence of 256 0-1 chars
 func FromCoinflipSequence(sequence string) (key []byte, err error) {
-	if len(sequence) != coinflipSeqRequiredLength {
-		return nil, fmt.Errorf("given sequence is %d long, must be %d", len(sequence), diceSeqRequiredLength)
+	if len(sequence) != CoinflipSeqRequiredLength {
+		return nil, fmt.Errorf("given sequence is %d long, must be %d", len(sequence), CoinflipSeqRequiredLength)
 	}
-	bi := new(big.Int)
-	bi, ok := bi.SetString(sequence, 2)
-	if !ok {
-		return nil, fmt.Errorf("big.Int.SetString return false for sequence %v", sequence)
+	privKey, err := coinflipsKey(sequence)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read sequence: %v", err)
 	}
-	if !isValidKey(bi) || !ok {
-		return nil, errors.New("input sequence represents a number not acceptable as private key")
-	}
-	privKey := bi.Bytes()
 	return privKey, nil
 }
 
 // ToWIF encode a private key (given as a hex string) to WIF (Wallet IMport Format) compressed or uncompressed
-func ToWIF(privateKeyHex string, compressed bool) (string, error) {
-	privKeyBytes, err := hex.DecodeString(privateKeyHex)
-	if err != nil {
-		return "", fmt.Errorf("supplied string cannot be decoded as hex due to %v", err)
-	}
-	first := append([]byte{0x80}, privKeyBytes...)
+func ToWIF(privKey []byte, compressed bool) (string, error) {
+	first := append([]byte{0x80}, privKey...)
 	if compressed {
 		first = append(first, 0x01)
 	}
@@ -191,4 +175,45 @@ func isEven(num *big.Int) (even bool) {
 		even = false
 	}
 	return
+}
+
+// Mnemonic generates a mnemonic from a byte array
+func Mnemonic(seed []byte) (string, error) {
+	mnemonic, err := bip39.NewMnemonic(seed)
+	if err != nil {
+		return "", fmt.Errorf("cennot generate mnemonic: %v", err)
+	}
+	return mnemonic, nil
+}
+
+func coinflipsKey(sequence string) ([]byte, error) {
+	bi := new(big.Int)
+	bi, ok := bi.SetString(sequence, 2)
+	if !ok {
+		return nil, fmt.Errorf("big.Int.SetString return false for sequence %v", sequence)
+	}
+	if !isValidKey(bi) {
+		return nil, errors.New("input sequence represents a number not acceptable as private key")
+	}
+	return bi.Bytes(), nil
+}
+
+func diceKey(sequence string) ([]byte, error) {
+	basesix := ""
+	for _, c := range []byte(sequence) {
+		n, err := strconv.ParseInt(string(c), 10, 8)
+		if err != nil {
+			return nil, fmt.Errorf("problems with char %c due to: %v", c, err)
+		}
+		basesix += strconv.Itoa(int(n - 1))
+	}
+	bi := new(big.Int)
+	bi, ok := bi.SetString(basesix, 6)
+	if !ok {
+		return nil, fmt.Errorf("big.Int.SetString return false for sequence %v", basesix)
+	}
+	if !isValidKey(bi) {
+		return nil, errors.New("input sequence represents a number not acceptable as private key")
+	}
+	return bi.Bytes(), nil
 }

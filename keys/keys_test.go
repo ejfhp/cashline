@@ -114,7 +114,11 @@ func TestDecodeCompressedWIF_3(t *testing.T) {
 
 func TestEncodeToUncompressedWIF(t *testing.T) {
 	privateKey := "7A97DA2C6F4BC73D2B330F2634975D6485C7294AD95F33ACC007C5BC5CB1DC5C"
-	wif, err := ToWIF(privateKey, false)
+	privKeyBytes, err := hex.DecodeString(privateKey)
+	if err != nil {
+		t.Errorf("supplied string cannot be decoded as hex due to %v", err)
+	}
+	wif, err := ToWIF(privKeyBytes, false)
 	if err != nil {
 		t.Errorf("WIF encoding has failed due to %v", err)
 	}
@@ -125,7 +129,11 @@ func TestEncodeToUncompressedWIF(t *testing.T) {
 }
 func TestEncodeToCompressedWIF(t *testing.T) {
 	privateKey := "7A97DA2C6F4BC73D2B330F2634975D6485C7294AD95F33ACC007C5BC5CB1DC5C"
-	wif, err := ToWIF(privateKey, true)
+	privKeyBytes, err := hex.DecodeString(privateKey)
+	if err != nil {
+		t.Errorf("supplied string cannot be decoded as hex due to %v", err)
+	}
+	wif, err := ToWIF(privKeyBytes, true)
 	if err != nil {
 		t.Errorf("WIF encoding has failed due to %v", err)
 	}
@@ -314,4 +322,13 @@ func TestFromCoinflipSequenceRandom(t *testing.T) {
 		}
 
 	}
+}
+
+func TestMnemonic(t *testing.T) {
+	privKeyHexString := "4440CD90151432BC082C6925A4A8D4CCFF2065017E9224D16563182C9AD8A7AA"
+	privKeyByte, err := hex.DecodeString(privKeyHexString)
+	if err != nil {
+		t.Errorf("Failed due to %v", err)
+	}
+	Mnemonic(privKeyByte)
 }

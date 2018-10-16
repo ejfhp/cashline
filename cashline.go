@@ -19,11 +19,16 @@ func main() {
 	privkey := addressSet.String("privkey", "", "Private Key (HEX)")
 	pubkey := addressSet.String("pubkey", "", "Public Key (HEX)")
 	keysSet := flag.NewFlagSet("keys", flag.ExitOnError)
-	diceSequence := keysSet.String("dice", "", "99 dice number (1-6)")
-	coinflipSequence := keysSet.String("coinflip", "", "256 coinflip number (0-1)")
-	flags := make([]*flag.FlagSet, 2, 2)
+	diceKSequence := keysSet.String("dice", "", "99 dice number (1-6)")
+	coinflipKSequence := keysSet.String("coinflips", "", "256 coinflip number (0-1)")
+	mnemonicSet := flag.NewFlagSet("mnemonic", flag.ExitOnError)
+	diceMSequence := mnemonicSet.String("dice", "", "99 dice number (1-6)")
+	coinflipMSequence := mnemonicSet.String("coinflips", "", "256 coinflip number (0-1)")
+	hexMSequence := mnemonicSet.String("hex", "", "64 chars hex string")
+	flags := make([]*flag.FlagSet, 3, 3)
 	flags[0] = addressSet
 	flags[1] = keysSet
+	flags[2] = mnemonicSet
 
 	if len(os.Args) < 2 {
 		printDefaults(flags)
@@ -35,6 +40,8 @@ func main() {
 		addressSet.Parse(os.Args[2:])
 	case "keys":
 		keysSet.Parse(os.Args[2:])
+	case "mnemonic":
+		mnemonicSet.Parse(os.Args[2:])
 	default:
 		fmt.Printf("Command unknown: %v\n", os.Args[1])
 		flag.PrintDefaults()
@@ -77,17 +84,66 @@ func main() {
 		if keysSet.NFlag() < 1 {
 			keysSet.PrintDefaults()
 		}
-		if len(*diceSequence) != 0 {
-			fmt.Printf("\nDice sequence: %v\n", *diceSequence)
-			key, err := keys.FromDiceSequence(*diceSequence)
+		if len(*diceKSequence) != 0 {
+			fmt.Printf("\nDice sequence (%d chars): %v\n", len(*diceKSequence), *diceKSequence)
+			if len(*diceKSequence) != keys.DiceSeqRequiredLength {
+				fmt.Printf("\nSequence must be of %d chars.\n\n", keys.DiceSeqRequiredLength)
+				os.Exit(0)
+			}
+			key, err := keys.FromDiceSequence(*diceKSequence)
 			exitOnError(err)
 			describeKey(key)
 		}
-		if len(*coinflipSequence) != 0 {
-			fmt.Printf("\nCoinflip sequence: %v\n", *coinflipSequence)
-			key, err := keys.FromCoinflipSequence(*coinflipSequence)
+		if len(*coinflipKSequence) != 0 {
+			fmt.Printf("\nCoinflip sequence (%d chars): %v\n", len(*coinflipKSequence), *coinflipKSequence)
+			if len(*coinflipKSequence) != keys.CoinflipSeqRequiredLength {
+				fmt.Printf("\nSequence must be of %d chars.\n\n", keys.CoinflipSeqRequiredLength)
+				os.Exit(0)
+			}
+			key, err := keys.FromCoinflipSequence(*coinflipKSequence)
 			exitOnError(err)
 			describeKey(key)
+		}
+	case mnemonicSet.Parsed():
+		fmt.Println()
+		if mnemonicSet.NFlag() < 1 {
+			mnemonicSet.PrintDefaults()
+		}
+		if len(*diceMSequence) != 0 {
+			fmt.Printf("\nDice sequence (%d chars): %v\n", len(*diceMSequence), *diceMSequence)
+			if len(*diceMSequence) != keys.DiceSeqRequiredLength {
+				fmt.Printf("\nSequence must be of %d chars.\n\n", keys.DiceSeqRequiredLength)
+				os.Exit(0)
+			}
+			key, err := keys.FromDiceSequence(*diceMSequence)
+			exitOnError(err)
+			mn, err := keys.Mnemonic(key)
+			exitOnError(err)
+			printResult(mn, "24 words mnemonic")
+		}
+		if len(*coinflipMSequence) != 0 {
+			fmt.Printf("\nCoinflip sequence (%d chars): %v\n", len(*coinflipMSequence), *coinflipMSequence)
+			if len(*coinflipMSequence) != keys.CoinflipSeqRequiredLength {
+				fmt.Printf("\nSequence must be of %d chars.\n\n", keys.CoinflipSeqRequiredLength)
+				os.Exit(0)
+			}
+			key, err := keys.FromCoinflipSequence(*coinflipMSequence)
+			exitOnError(err)
+			mn, err := keys.Mnemonic(key)
+			exitOnError(err)
+			printResult(mn, "24 words mnemonic")
+		}
+		if len(*hexMSequence) != 0 {
+			fmt.Printf("\nHex sequence (%d chars): %v\n", len(*hexMSequence), *hexMSequence)
+			if len(*hexMSequence) != keys.HexSeqRequiredLength {
+				fmt.Printf("\nSequence must be of %d chars.\n\n", keys.HexSeqRequiredLength)
+				os.Exit(0)
+			}
+			key, err := hex.DecodeString(*hexMSequence)
+			exitOnError(err)
+			mn, err := keys.Mnemonic(key)
+			exitOnError(err)
+			printResult(mn, "24 words mnemonic")
 		}
 	}
 }
@@ -106,26 +162,25 @@ func printDefaults(flags []*flag.FlagSet) {
 }
 
 func describeKey(key []byte) {
-	keyStr := hex.EncodeToString(key)
-	compWIF, err := keys.ToWIF(keyStr, true)
+	compWIF, err := keys.ToWIF(key, true)
 	exitOnError(err)
 	printResult(compWIF, "compressed WIF")
 	address, err := cashaddr.FromWIF(compWIF)
 	exitOnError(err)
 	printResult(address, "compressed cashaddress")
-	uncoWIF, err := keys.ToWIF(keyStr, false)
+	uncoWIF, err := keys.ToWIF(key, false)
 	exitOnError(err)
 	printResult(uncoWIF, "uncompressed WIF")
 	address, err = cashaddr.FromWIF(uncoWIF)
 	exitOnError(err)
 	printResult(address, "uncompressed cashaddress")
-	printResult(keyStr, "key in HEX")
+	printResult(hex.EncodeToString(key), "key in HEX")
 	printResult(hex.EncodeToString(keys.Public(key, true)), "compressed public key in HEX")
 	printResult(hex.EncodeToString(keys.Public(key, false)), "uncompressed public key in HEX")
 }
 
 func printResult(value, description string) {
-	fmt.Printf("\t%v %s\n", value, description)
+	fmt.Printf("\t%v [%s]\n", value, description)
 }
 
 func exitOnError(err error) {
